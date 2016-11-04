@@ -61,7 +61,6 @@ class Arachni::Checks::Xss < Arachni::Check::Base
             # much.
             k = "#{response.url.hash}-#{response.body.hash}".hash
             next if optimization_cache[k] == :checked
-
             optimization_cache[k] = check_and_log( response, element )
         end
     end
@@ -69,9 +68,19 @@ class Arachni::Checks::Xss < Arachni::Check::Base
     def check_and_log( response, element )
         # Bail out if the response is not tainted unless we're dealing with a Link.
         # The other cases either don't matter or are covered by the xss_dom check.
+
         if (self.class.elements - [Arachni::Link]).include?( element.class ) &&
             !response.body.downcase.include?( self.class.tag )
 
+            return :checked
+        end
+
+
+        content_type = response.headers.content_type.to_s
+
+        # if content-type is application/json, we can not utilize it directly, so we skip it.
+        if content_type and content_type.downcase.include? 'application/json'
+            print_info "Skip content-type: #{content_type}"
             return :checked
         end
 
@@ -225,3 +234,4 @@ versions._
     end
 
 end
+
