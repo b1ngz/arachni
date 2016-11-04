@@ -55,6 +55,16 @@ class Arachni::Checks::BackupFiles < Arachni::Check::Base
             # Add format to the Issue remarks and some helpful message to let
             # the user know how Arachni got to the resulting filename.
             filename = format.gsub( '[name]', name ).gsub( '[extension]', extension )
+
+            # some url will use [digital].[digital] to specify api version, eg. https://example/query/1.0
+            # then "name" will be 1, "extension" will be 0，if api version 1.0 and 1.1 are both exist，if will cause false positive when match "[name].1" rule.
+            # we skip the case which extension is digital and filename is [digital].[digital]
+
+            if extension =~ /\A[0-9]+\z/ and filename =~ /\A[0-9]+\.[0-9]+\z/
+                print_info "skip: filename: #{filename}, format: #{format}"
+                next
+            end
+
             url = up_to_path + filename
 
             # If there's no extension we'll end up with '..' in URLs.
@@ -132,3 +142,5 @@ not a recommended option.
     end
 
 end
+
+
