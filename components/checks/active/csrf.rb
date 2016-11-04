@@ -6,6 +6,7 @@
     web site for more information on licensing and terms of use.
 =end
 
+
 # Cross-Site Request Forgery check.
 #
 # It uses 4-pass reverse-diff analysis to determine which forms affect business logic
@@ -42,9 +43,9 @@ class Arachni::Checks::CSRF < Arachni::Check::Base
     def run
         print_status 'Looking for CSRF candidates...'
         print_status 'Simulating logged-out user.'
-
         # request page without cookies, simulating a logged-out user
         http.get( page.url, cookies: {}, no_cookie_jar: true ) do |res|
+
             # extract forms from the body of the response
             logged_out = forms_from_response( res ).reject { |f| f.inputs.empty? }
 
@@ -59,6 +60,7 @@ class Arachni::Checks::CSRF < Arachni::Check::Base
             candidates.each do |form|
                 # If the form has no source then it was dynamically provided by
                 # some component, so skip it.
+
                 next if !form.source
 
                 # If a form has a nonce then we're cool.
@@ -80,8 +82,40 @@ class Arachni::Checks::CSRF < Arachni::Check::Base
 
         audited( "#{url}::#{name}" )
 
-        log( vector: form, proof: form.source )
-        print_ok "Found unprotected form with name '#{name}' at '#{page.url}'"
+        # start: fix problem there is no request and response info in report "Affected page" section
+        # get headers
+        headers = Options.http.request_headers
+
+        # form-urlencoded
+        uri = Addressable::URI.new
+        uri.query_values = form.inputs
+
+        # presume there is csrf problem
+        is_csrf = true
+
+        # first request
+        http.post(url, options={:parameters => uri.query})  do |response|
+
+            # if referer exists, we send request without it and check whether or not the the response body is different
+            if headers.key?('Referer')
+                # delete referer
+                referer = http.headers.delete('Referer')
+
+                http.post(url, options={:parameters => uri.query}) do |check_resp|
+
+                    # restore referer
+                    http.headers['Referer'] = referer
+                    # if different，the server would have referer check.
+                    is_csrf = false if response.body != check_resp.body
+                end
+            end
+
+            if is_csrf
+              log( vector: form, proof: form.source, response: response)
+              print_ok "Found unprotected form with name '#{name}' at '#{page.url}'"
+            end
+        end
+        # end fix problem there is no request and response info in report "Affected page" section
     end
 
     def self.info
@@ -159,3 +193,4 @@ _For examples of framework specific remediation options, please refer to the ref
     end
 
 end
+
