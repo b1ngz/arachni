@@ -146,10 +146,15 @@ class Response < Message
         if (type = headers.content_type)
             return @is_text = true if type.start_with?( 'text/' )
 
+            # if type is json, it's text-based.
+            return @is_text = true if type.start_with?( 'application/json')
+
             # Non "text/" nor "application/" content types will surely not be
             # text-based so bail out early.
             return @is_text = false if !type.start_with?( 'application/' )
         end
+
+
 
         # Last resort, more resource intensive binary detection.
         @is_text = begin
@@ -305,3 +310,4 @@ class Response < Message
 end
 end
 end
+
