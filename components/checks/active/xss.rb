@@ -77,15 +77,6 @@ class Arachni::Checks::Xss < Arachni::Check::Base
             return :checked
         end
 
-
-        content_type = response.headers.content_type.to_s
-
-        # if content-type is application/json, we can not utilize it directly, so we skip it.
-        if content_type and content_type.downcase.include? 'application/json'
-            print_info "Skip content-type: #{content_type}"
-            return :checked
-        end
-
         # See if we managed to successfully inject our element in the doc tree.
         if self.class.find_proof( response )
             log vector: element, proof: self.class.tag, response: response
